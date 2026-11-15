@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Missione Spaziale - Odissea Orbitale 8-BIT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Press Start 2P"', 'monospace'],
+                        mono: ['"Press Start 2P"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0d0221;
+            color: #00ffcc;
+            font-family: '"Press Start 2P"', monospace;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(112, 0, 255, 0.15) 0%, transparent 60%),
+                linear-gradient(rgba(18, 16, 38, 0.8) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(18, 16, 38, 0.8) 1px, transparent 1px);
+            background-size: 100% 100%, 16px 16px, 16px 16px;
+        }
+
+        /* Effetto Scanlines stile CRT retrò */
+        body::after {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 38, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        .glass-card {
+            background: #190a33;
+            border: 3px solid #ff00ff;
+            box-shadow: 4px 4px 0px #00ffff, 8px 8px 0px #7000ff;
+        }
+
+        @keyframes floatRocket {
+            0%, 100% { transform: translateY(0px) rotate(45deg); }
+            50% { transform: translateY(-6px) rotate(45deg); }
+        }
+        .rocket-fly {
+            display: inline-block;
+            animation: floatRocket 1.2s steps(2, start) infinite;
+        }
+
+        @keyframes warpFly {
+            0% { transform: translateX(-150vw) scale(0.6) rotate(45deg); opacity: 0; }
+            50% { transform: translateX(0vw) scale(1.2) rotate(45deg); opacity: 1; }
+            100% { transform: translateX(150vw) scale(0.6) rotate(45deg); opacity: 0; }
+        }
+        .warp-animation {
+            animation: warpFly 2.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* ANIMAZIONE ATTERRAGGIO SU MARTE (VITTORIA) */
+        @keyframes landMarsAnim {
+            0% { transform: translateY(-120vh) scale(0.5) rotate(0deg); opacity: 0; }
+            40% { transform: translateY(0vh) scale(1.2) rotate(15deg); opacity: 1; }
+            70% { transform: translateY(20vh) scale(1.5) rotate(0deg); opacity: 1; filter: drop-shadow(0 0 25px rgba(0,255,136,0.8)); }
+            100% { transform: translateY(30vh) scale(1) rotate(0deg); opacity: 1; }
+        }
+        .land-animation {
+            animation: landMarsAnim 3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        /* ANIMAZIONE SCHIANTO ED ESPLOSIONE (FALLIMENTO) */
+        @keyframes crashMarsAnim {
+            0% { transform: translateY(-120vh) rotate(45deg) scale(0.8); opacity: 0; }
+            45% { transform: translateY(10vh) rotate(120deg) scale(1.2); opacity: 1; }
+            60% { transform: translateY(35vh) rotate(220deg) scale(1.5); filter: drop-shadow(0 0 35px rgba(255,0,85,0.9)); }
+            80% { transform: translateY(35vh) rotate(360deg) scale(2.5); filter: invert(1) brightness(2) drop-shadow(0 0 50px red); }
+            100% { transform: translateY(35vh) rotate(360deg) scale(0.2); opacity: 0; }
+        }
+        .crash-animation {
+            animation: crashMarsAnim 2.8s ease-in-out forwards;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-in {
+            animation: popIn 0.25s ease-out forwards;
+        }
+
+        .pixel-btn {
+            background-color: #7000ff;
+            border: 3px solid #00ffff;
+            box-shadow: 3px 3px 0px #ff00ff;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .pixel-btn:hover:not(:disabled) {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0px #ff00ff, 2px 2px 0px #00ffff;
+        }
+        .pixel-btn:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px #ff00ff;
+        }
+        .pixel-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-pink-500 selection:text-white">
+
+    <!-- ANIMAZIONE DI TRANSIZIONE A SCHERMO INTERO (WARP) -->
+    <div id="warp-overlay" class="fixed inset-0 z-50 bg-[#0d0221]/95 flex flex-col items-center justify-center pointer-events-none hidden">
+        <div id="warp-rocket" class="text-7xl sm:text-9xl warp-animation">🚀</div>
+        <div id="warp-text" class="text-yellow-300 text-xs sm:text-sm font-bold uppercase tracking-widest mt-6 animate-pulse text-center px-4">
+            ACCENSIONE MOTORI WARP...
+        </div>
+    </div>
+
+    <!-- ANIMAZIONE CINEMATICA FINALE (ATTERRAGGIO O SCHIANTO) -->
+    <div id="cinematic-overlay" class="fixed inset-0 z-50 bg-[#120826]/98 flex flex-col items-center justify-center pointer-events-none hidden overflow-hidden">
+        <!-- Pianeta Marte sullo sfondo -->
+        <div id="cinematic-planet" class="absolute bottom-0 w-[200vw] h-[120vh] rounded-[100%] bg-gradient-to-t from-red-900 via-orange-800 to-transparent border-t-8 border-red-500 opacity-90"></div>
+        
+        <!-- Razzo che atterra o si schianta -->
+        <div id="cinematic-rocket-wrap" class="relative z-10 text-8xl sm:text-9xl mb-8">
+            <span id="cinematic-rocket-emoji">🚀</span>
+        </div>
+
+        <div id="cinematic-text" class="relative z-10 text-xs sm:text-sm font-bold uppercase tracking-widest text-center px-4 animate-pulse">
+            TEXT
+        </div>
+    </div>
+
+    <!-- HEADER RETRÒ 8-BIT -->
+    <header class="border-b-4 border-yellow-400 bg-[#120826] sticky top-0 z-30 px-2 sm:px-4 py-3 shadow-[0_4px_0_#ff00ff]">
+        <div class="max-w-5xl mx-auto flex items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-yellow-400 border-2 border-cyan-400 flex items-center justify-center text-xl shadow-[2px_2px_0_#ff00ff]">
+                    🚀
+                </div>
+                <div>
+                    <h1 class="text-xs sm:text-sm font-extrabold tracking-wider text-yellow-300 leading-none">
+                        SPACE ODYSSEY <span class="text-cyan-400">8-BIT</span>
+                    </h1>
+                    <p id="stage-subtitle" class="text-[9px] text-pink-400 mt-1">STAGE 1: CARICO STIVA</p>
+                </div>
+            </div>
+
+            <!-- Controlli Audio & Arcade -->
+            <div class="flex items-center gap-2">
+                <button id="btn-music" onclick="toggleArcadeMusic()" title="Musica Arcade" class="pixel-btn px-2.5 py-2 text-[10px] flex items-center gap-1">
+                    <span id="music-icon" class="text-xs">🎵</span>
+                    <span id="music-text" class="hidden sm:inline">OFF</span>
+                </button>
+
+                <button id="btn-audio" onclick="toggleAudio()" title="Effetti Sonori" class="pixel-btn px-2.5 py-2 text-[10px]">
+                    <span id="audio-icon" class="text-xs">🔊</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTENITORE CENTRALE -->
+    <main class="flex-1 max-w-5xl w-full mx-auto p-2 sm:p-4 flex flex-col justify-center my-2">
+
+        <!-- ========================================================= -->
+        <!-- STAGE 1: RACCOLTA RISORSE & CARICO DELLA STIVA            -->
+        <!-- ========================================================= -->
+        <section id="stage-1-view" class="space-y-4 pop-in">
+            <!-- Banner Istruzioni -->
+            <div class="glass-card rounded-none p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <span class="inline-block text-[8px] uppercase tracking-wider px-2 py-1 bg-cyan-500 text-black font-bold mb-2">
+                        PRE-LANCIO & BILANCIAMENTO MASSA
+                    </span>
+                    <h2 class="text-sm sm:text-base font-bold text-yellow-300">RIEMPI LA STIVA (6 SLOT)</h2>
+                    <p class="text-[10px] sm:text-xs text-cyan-200 mt-2 leading-relaxed">
+                        Scegli fino a 6 oggetti. Attenzione: ogni oggetto ha un <strong>PESO (KG)</strong> che aumenta il consumo di carburante ad ogni tappa del viaggio!
+                    </p>
+                </div>
+                <button onclick="rerollConveyor()" class="pixel-btn shrink-0 px-3 py-2 text-[10px] font-bold">
+                    🔄 RIMESCOLA
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <!-- Nastro Trasportatore -->
+                <div class="lg:col-span-7 glass-card rounded-none p-4">
+                    <div class="flex justify-between items-center mb-3 pb-2 border-b-2 border-pink-500">
+                        <h3 class="text-[10px] uppercase text-cyan-300 font-bold">📦 MAGAZZINO NASTRO</h3>
+                        <span class="text-[9px] text-yellow-400">CLICCA PER CARICARE</span>
+                    </div>
+
+                    <div id="conveyor-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <!-- Oggetti generati via JS -->
+                    </div>
+                </div>
+
+                <!-- Stiva del Razzo -->
+                <div class="lg:col-span-5 glass-card rounded-none p-4 flex flex-col justify-between border-yellow-400">
+                    <div>
+                        <div class="flex justify-between items-center mb-3 pb-2 border-b-2 border-yellow-400">
+                            <h3 class="text-[10px] uppercase text-yellow-300 font-bold">🚀 STIVA RAZZO</h3>
+                            <span id="cargo-count" class="text-[9px] font-bold px-2 py-1 bg-yellow-400 text-black">
+                                0 / 6
+                            </span>
+                        </div>
+
+                        <!-- Griglia 6 Slot Stiva -->
+                        <div id="cargo-grid" class="grid grid-cols-2 gap-2 mb-3">
+                            <!-- Slot stiva -->
+                        </div>
+
+                        <!-- Pannello Telemetria Peso & Consumo Carburante -->
+                        <div id="weight-telemetry-box" class="mb-3 p-3 bg-[#120826] border-2 border-emerald-400 space-y-2 transition-colors">
+                            <div class="flex justify-between items-center text-[9px] font-bold">
+                                <span class="text-cyan-300">⚖️ PESO TOTALE:</span>
+                                <span id="stage1-total-weight" class="text-emerald-400">0 KG</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[9px] font-bold">
+                                <span class="text-yellow-300">⛽ CONSUMO TAPPA (x8):</span>
+                                <span id="stage1-fuel-burn" class="text-emerald-400">-4% FUEL</span>
+                            </div>
+                            <div class="w-full h-2 bg-black border border-cyan-500/60 overflow-hidden">
+                                <div id="stage1-weight-bar" class="h-full bg-emerald-400 transition-all duration-200" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Feedback -->
+                        <div id="cargo-feedback" class="p-3 bg-[#0d0221] border-2 border-cyan-400 text-[10px] text-cyan-200 leading-relaxed">
+                            Seleziona un oggetto a sinistra per imbarcarlo. Clicca su uno slot pieno per rimuoverlo.
+                        </div>
+                    </div>
+
+                    <!-- Pulsante Lancio -->
+                    <div class="mt-4 pt-3 border-t-2 border-pink-500">
+                        <button id="btn-launch" onclick="launchRocket()" class="pixel-btn w-full py-3.5 px-4 bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs uppercase tracking-wider text-center">
+                            🔥 LANCIA RAZZO!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- STAGE 2: VOLO SPAZIALE INTERATTIVO A TAPPE                -->
+        <!-- ========================================================= -->
+        <section id="stage-2-view" class="hidden space-y-4 pop-in">
+            
+            <!-- Mappa Rotta & Barre -->
+            <div class="glass-card rounded-none p-4">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[9px] uppercase text-cyan-300 font-bold">ROTTA TERRA-MARTE</span>
+                    <span id="step-indicator" class="text-[9px] font-bold px-2 py-0.5 bg-cyan-400 text-black">
+                        TAPPA 1/8
+                    </span>
+                </div>
+
+                <div class="relative py-3 px-1">
+                    <div class="flex justify-between items-center text-[9px] font-bold mb-2">
+                        <span class="text-cyan-300">EARTH</span>
+                        <span class="text-pink-400">MARS</span>
+                    </div>
+                    <!-- Binario -->
+                    <div class="w-full h-4 bg-black border-2 border-yellow-400 relative flex items-center">
+                        <div id="flight-progress-fill" class="h-full bg-yellow-400 transition-all duration-300" style="width: 10%;"></div>
+                        <div id="rocket-marker" class="absolute -top-3 transition-all duration-300 text-xl" style="left: 8%;">
+                            <span class="rocket-fly">🚀</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3 Barre Status -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-2">
+                    <!-- Carburante + Telemetria Carico -->
+                    <div id="box-fuel" class="bg-[#0d0221] p-2.5 border-2 border-yellow-400">
+                        <div class="flex justify-between items-center text-[9px] font-bold mb-1">
+                            <span class="text-yellow-300">FUEL</span>
+                            <span id="txt-fuel" class="text-white">100%</span>
+                        </div>
+                        <div class="w-full h-2.5 bg-black border border-yellow-500">
+                            <div id="bar-fuel" class="h-full bg-yellow-400 transition-all duration-200" style="width: 100%"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-[8px] mt-1.5 pt-1 border-t border-yellow-500/40">
+                            <span id="hud-cargo-weight" class="text-cyan-300 font-bold">CARICO: 0 KG</span>
+                            <span id="hud-fuel-rate" class="text-pink-400 font-bold">-4%/TAPPA</span>
+                        </div>
+                    </div>
+
+                    <!-- Ossigeno -->
+                    <div id="box-oxygen" class="bg-[#0d0221] p-2.5 border-2 border-cyan-400 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-center text-[9px] font-bold mb-1">
+                                <span class="text-cyan-300">OXYGEN</span>
+                                <span id="txt-oxygen" class="text-white">100%</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-black border border-cyan-500">
+                                <div id="bar-oxygen" class="h-full bg-cyan-400 transition-all duration-200" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <div class="text-[8px] text-cyan-400/70 mt-1.5 pt-1 border-t border-cyan-500/30">
+                            SISTEMA VITALE OK
+                        </div>
+                    </div>
+
+                    <!-- Scafo -->
+                    <div id="box-hull" class="bg-[#0d0221] p-2.5 border-2 border-emerald-400 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-center text-[9px] font-bold mb-1">
+                                <span class="text-emerald-300">HULL</span>
+                                <span id="txt-hull" class="text-white">100%</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-black border border-emerald-500">
+                                <div id="bar-hull" class="h-full bg-emerald-400 transition-all duration-200" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <div class="text-[8px] text-emerald-400/70 mt-1.5 pt-1 border-t border-emerald-500/30">
+                            INTEGRITÀ STRUTTURALE
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Area Evento & Stiva -->
+            <div id="flight-event-wrapper" class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <!-- Evento (8 colonne) -->
+                <div id="event-card-box" class="lg:col-span-8 glass-card rounded-none p-4 sm:p-5 border-yellow-400 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-3 mb-3 pb-2 border-b-2 border-yellow-400">
+                            <div id="event-emoji" class="w-12 h-12 bg-black border-2 border-yellow-400 flex items-center justify-center text-2xl shrink-0">
+                                ☄️
+                            </div>
+                            <div>
+                                <span id="event-tag" class="text-[8px] uppercase text-yellow-300 font-bold">
+                                    ALLERTA
+                                </span>
+                                <h2 id="event-title" class="text-xs sm:text-sm font-bold text-white mt-1">
+                                    Titolo Evento
+                                </h2>
+                            </div>
+                        </div>
+
+                        <p id="event-desc" class="text-[10px] sm:text-xs text-cyan-200 leading-relaxed bg-[#0d0221] p-3 border-2 border-cyan-500 mb-4">
+                            Descrizione...
+                        </p>
+
+                        <!-- Esito azione -->
+                        <div id="action-result-banner" class="hidden mb-3 p-3 border-2 text-[10px] space-y-1.5 leading-relaxed">
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="text-[9px] uppercase text-pink-400 mb-2">SCEGLI AZIONE:</p>
+                        <div id="event-options" class="grid grid-cols-1 gap-2">
+                            <!-- Scelte -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inventario a bordo (4 colonne) -->
+                <div class="lg:col-span-4 glass-card rounded-none p-4 flex flex-col">
+                    <h3 class="text-[9px] uppercase tracking-wider text-cyan-300 font-bold mb-3 pb-2 border-b-2 border-cyan-400 flex items-center justify-between">
+                        <span>🎒 STIVA (<span id="flight-cargo-count" class="text-yellow-400">0</span>)</span>
+                        <span id="flight-cargo-total-kg" class="text-pink-400">0 KG</span>
+                    </h3>
+                    <div id="flight-cargo-list" class="space-y-2 flex-1 overflow-y-auto max-h-[280px]">
+                        <!-- Lista -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- STAGE 3: SCHERMATA FINALE                                 -->
+        <!-- ========================================================= -->
+        <section id="stage-3-view" class="hidden max-w-2xl mx-auto w-full pop-in">
+            <div class="glass-card rounded-none p-5 sm:p-6 text-center border-4" id="end-card-border">
+                <div id="end-emoji" class="w-16 h-16 mx-auto bg-black border-2 flex items-center justify-center text-3xl mb-3 shadow">
+                    🏆
+                </div>
+                <span id="end-badge" class="text-[9px] uppercase px-3 py-1 font-bold">
+                    FINE
+                </span>
+                <h2 id="end-title" class="text-sm sm:text-base font-bold text-white mt-2 mb-2">
+                    Risultato
+                </h2>
+                <p id="end-summary" class="text-[10px] sm:text-xs text-cyan-200 mb-4 leading-relaxed">
+                    Sommario...
+                </p>
+
+                <div class="bg-[#0d0221] rounded-none p-3 border-2 border-yellow-400 text-left mb-4 space-y-3">
+                    <div class="grid grid-cols-3 gap-2 text-center pb-3 border-b-2 border-yellow-400 text-[9px]">
+                        <div>
+                            <div class="text-yellow-400">FUEL</div>
+                            <div id="final-fuel" class="text-xs font-bold text-white mt-1">60%</div>
+                        </div>
+                        <div>
+                            <div class="text-cyan-400">OXYGEN</div>
+                            <div id="final-oxygen" class="text-xs font-bold text-white mt-1">70%</div>
+                        </div>
+                        <div>
+                            <div class="text-emerald-400">HULL</div>
+                            <div id="final-hull" class="text-xs font-bold text-white mt-1">85%</div>
+                        </div>
+                    </div>
+
+                    <!-- Riepilogo Peso Trasportato -->
+                    <div class="grid grid-cols-2 gap-2 text-center pb-3 border-b-2 border-cyan-500/40 text-[9px]">
+                        <div class="bg-black/60 p-2 border border-cyan-500/40">
+                            <div class="text-cyan-300">⚖️ PESO AL DECOLLO</div>
+                            <div id="final-initial-weight" class="text-xs font-bold text-yellow-300 mt-1">0 KG</div>
+                        </div>
+                        <div class="bg-black/60 p-2 border border-pink-500/40">
+                            <div class="text-pink-300">🏁 PESO ALL'ARRIVO</div>
+                            <div id="final-end-weight" class="text-xs font-bold text-emerald-300 mt-1">0 KG</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-[9px] uppercase text-pink-400 mb-2">🎒 INVENTARIO CARICATO:</h4>
+                        <div id="final-items-list" class="flex flex-wrap gap-2">
+                            <!-- Badge -->
+                        </div>
+                        <p id="final-funny-comment" class="text-[9px] sm:text-[10px] text-yellow-300 italic mt-3 bg-black p-2 border border-yellow-500 leading-relaxed">
+                            Commento...
+                        </p>
+                    </div>
+                </div>
+
+                <button onclick="triggerWarpTransition(() => restartGame(), 'RIAVVIO STIVA...')" class="pixel-btn w-full py-3.5 px-4 bg-yellow-400 text-black font-bold text-xs uppercase tracking-wider">
+                    🔄 GIOCA ANCORA
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- SCRIPT GIOCO -->
+    <script>
+        const MAX_CARGO = 6;
+        const TOTAL_STEPS = 8;
+
+        // Oggetti con peso bilanciato in KG
+        const ALL_ITEMS = [
+            { id: 'heat_shield', name: 'SCUDO DEFLETTORE', icon: '🛡️', useful: true, weight: 45 },
+            { id: 'fuel_cell', name: 'CELL COMBUSTIBILE', icon: '🔋', useful: true, weight: 30 },
+            { id: 'o2_tank', name: 'BOMBOLA OSSIGENO', icon: '🫧', useful: true, weight: 25 },
+            { id: 'repair_kit', name: 'KIT RIPARAZIONE', icon: '🛠️', useful: true, weight: 20 },
+            { id: 'sensor_dish', name: 'SCANNER SPAZIALE', icon: '📡', useful: true, weight: 18 },
+            { id: 'med_pack', name: 'KIT MEDICO', icon: '🍱', useful: true, weight: 12 },
+            { id: 'office_chair', name: 'SEDIA GIREVOLE', icon: '🪑', useful: false, weight: 22 },
+            { id: 'golf_set', name: 'MAZZA GOLF', icon: '🏌️', useful: false, weight: 15 },
+            { id: 'lava_lamp', name: 'LAMPADA LAVA', icon: '🛋️', useful: false, weight: 14 },
+            { id: 'toaster', name: 'TOSTAPANE VINTAGE', icon: '🍞', useful: false, weight: 10 },
+            { id: 'cactus', name: 'PIANTA GRASSA', icon: '🌵', useful: false, weight: 8 },
+            { id: 'rubber_duck', name: 'PAPERA GOMMA XL', icon: '🦆', useful: false, weight: 4 }
+        ];
+
+        let state = {
+            cargo: [],
+            conveyor: [],
+            initialCargoSnapshot: [],
+            initialWeight: 0,
+            usedItemsLog: [],
+            triggeredEventIds: [],
+            failuresCount: 0,
+            instantDeathReason: '',
+            step: 1,
+            fuel: 100,
+            oxygen: 90,
+            hull: 90,
+            stepResolved: false,
+            currentEvent: null
+        };
+
+        // Calcola il peso totale degli oggetti attualmente nella stiva
+        function getCurrentCargoWeight() {
+            return state.cargo.reduce((total, item) => total + (item.weight || 0), 0);
+        }
+
+        // Calcola il consumo di carburante per tappa su 8 tappe in base al peso fornito
+        function calcFuelBurnPerStep(weightKg) {
+            return Math.max(4, Math.round(3 + weightKg / 20));
+        }
+
+        // Restituisce le classi colore in base al peso totale
+        function getWeightStyleClasses(weightKg) {
+            if (weightKg <= 75) {
+                return {
+                    border: 'border-emerald-400',
+                    text: 'text-emerald-400',
+                    bar: 'bg-emerald-400',
+                    label: 'LEGGERO'
+                };
+            } else if (weightKg <= 125) {
+                return {
+                    border: 'border-yellow-400',
+                    text: 'text-yellow-400',
+                    bar: 'bg-yellow-400',
+                    label: 'MEDIO'
+                };
+            } else {
+                return {
+                    border: 'border-pink-500',
+                    text: 'text-pink-400',
+                    bar: 'bg-pink-500',
+                    label: 'PESANTE'
+                };
+            }
+        }
+
+        let audioEnabled = true;
+        let musicEnabled = false;
+        let audioCtx = null;
+        let musicInterval = null;
+
+        function playTone(freq, type = 'square', duration = 0.1, delay = 0) {
+            if (!audioEnabled) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+                
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime + delay);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + duration);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(audioCtx.currentTime + delay);
+                osc.stop(audioCtx.currentTime + delay + duration);
+            } catch (e) {}
+        }
+
+        // Musica spaziale epica retro (Arpeggi e pad interstellari)
+        const SPACE_ARPEGGIO_MELODY = [
+            { freq: 220.00, type: 'sawtooth', duration: 0.18 }, // A3
+            { freq: 329.63, type: 'sine', duration: 0.18 },     // E4
+            { freq: 440.00, type: 'sine', duration: 0.18 },     // A4
+            { freq: 554.37, type: 'sawtooth', duration: 0.18 }, // C#5
+            { freq: 659.25, type: 'sine', duration: 0.25 },     // E5
+            { freq: 493.88, type: 'sawtooth', duration: 0.18 }, // B4
+            { freq: 392.00, type: 'sine', duration: 0.18 },     // G4
+            { freq: 329.63, type: 'sine', duration: 0.25 }      // E4
+        ];
+        let spaceMelodyIndex = 0;
+
+        function playSpaceBeatStep() {
+            if (!musicEnabled || !audioEnabled) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                const note = SPACE_ARPEGGIO_MELODY[spaceMelodyIndex];
+                spaceMelodyIndex = (spaceMelodyIndex + 1) % SPACE_ARPEGGIO_MELODY.length;
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = note.type;
+                osc.frequency.setValueAtTime(note.freq, audioCtx.currentTime);
+
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + note.duration);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + note.duration);
+            } catch (e) {}
+        }
+
+        function toggleArcadeMusic() {
+            musicEnabled = !musicEnabled;
+            const icon = document.getElementById('music-icon');
+            const txt = document.getElementById('music-text');
+            if (musicEnabled) {
+                icon.textContent = '🌌';
+                txt.textContent = 'ON';
+                spaceMelodyIndex = 0;
+                playSpaceBeatStep();
+                if (!musicInterval) {
+                    musicInterval = setInterval(playSpaceBeatStep, 220);
+                }
+            } else {
+                icon.textContent = '🎵';
+                txt.textContent = 'OFF';
+                if (musicInterval) {
+                    clearInterval(musicInterval);
+                    musicInterval = null;
+                }
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            document.getElementById('audio-icon').textContent = audioEnabled ? '🔊' : '🔇';
+        }
+
+        function sfxPickup(useful) {
+            playTone(useful ? 600 : 250, 'square', 0.1);
+        }
+
+        function sfxRemove() {
+            playTone(200, 'sawtooth', 0.1);
+        }
+
+        function sfxWarpTransition() {
+            if (!audioEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(550, audioCtx.currentTime + 1.8);
+
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.0);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 2.0);
+            } catch (e) {}
+        }
+
+        function sfxLandingCinematic() {
+            if (!audioEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 2.5);
+
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.8);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 2.8);
+
+                setTimeout(() => {
+                    playTone(523.25, 'square', 0.2, 0);
+                    playTone(659.25, 'square', 0.2, 0.2);
+                    playTone(783.99, 'square', 0.4, 0.4);
+                    playTone(1046.50, 'square', 0.6, 0.6);
+                }, 1500);
+            } catch (e) {}
+        }
+
+        function sfxCrashCinematic() {
+            if (!audioEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 1.2);
+
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 1.5);
+
+                setTimeout(() => {
+                    playTone(70, 'sawtooth', 0.6, 0);
+                    playTone(45, 'sawtooth', 0.8, 0.2);
+                }, 1200);
+            } catch (e) {}
+        }
+
+        function sfxSuccess() {
+            playTone(440, 'square', 0.12, 0);
+            playTone(554.37, 'square', 0.12, 0.12);
+            playTone(659.25, 'square', 0.25, 0.24);
+        }
+
+        function sfxFail() {
+            playTone(180, 'sawtooth', 0.2, 0);
+            playTone(120, 'sawtooth', 0.3, 0.2);
+        }
+
+        // STAGE 1: INIZIALIZZAZIONE & GESTIONE STIVA
+        function initStage1() {
+            state.cargo = [];
+            state.usedItemsLog = [];
+            state.triggeredEventIds = [];
+            randomizeConveyorItems();
+            renderStage1();
+        }
+
+        // Estrae casualmente fino a 6 oggetti dal catalogo escludendo quelli già in stiva
+        function randomizeConveyorItems() {
+            const available = ALL_ITEMS.filter(item => !state.cargo.some(c => c.id === item.id));
+            const shuffled = [...available].sort(() => 0.5 - Math.random());
+            state.conveyor = shuffled.slice(0, 6);
+        }
+
+        function rerollConveyor() {
+            playTone(320, 'sine', 0.1);
+            randomizeConveyorItems();
+            renderStage1();
+        }
+
+        function addToCargo(itemId) {
+            if (state.cargo.length >= MAX_CARGO) return;
+            const itemIdx = state.conveyor.findIndex(i => i.id === itemId);
+            if (itemIdx === -1) return;
+
+            const item = state.conveyor[itemIdx];
+            sfxPickup(item.useful);
+            state.cargo.push(item);
+
+            // Randomizza completamente tutti i 6 oggetti sul nastro dopo ogni scelta
+            randomizeConveyorItems();
+            renderStage1();
+        }
+
+        function removeFromCargo(index) {
+            sfxRemove();
+            state.cargo.splice(index, 1);
+
+            // Randomizza completamente tutti i 6 oggetti sul nastro anche dopo aver liberato uno slot
+            randomizeConveyorItems();
+            renderStage1();
+        }
+
+        function renderStage1() {
+            // Render Magazzino Nastro
+            const conveyorEl = document.getElementById('conveyor-grid');
+            conveyorEl.innerHTML = '';
+            state.conveyor.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = 'pixel-btn p-2.5 bg-[#0d0221] hover:bg-[#201045] flex flex-col items-center justify-between gap-1.5 text-center h-28 transition-all';
+                btn.onclick = () => addToCargo(item.id);
+                btn.innerHTML = `
+                    <span class="text-2xl">${item.icon}</span>
+                    <span class="text-[8px] sm:text-[9px] text-yellow-300 font-bold leading-tight">${item.name}</span>
+                    <span class="text-[8px] px-1.5 py-0.5 bg-cyan-950 border border-cyan-400 text-cyan-300 font-bold">${item.weight} KG</span>
+                `;
+                conveyorEl.appendChild(btn);
+            });
+
+            // Render Griglia 6 Slot Stiva
+            const cargoGrid = document.getElementById('cargo-grid');
+            cargoGrid.innerHTML = '';
+            for (let i = 0; i < MAX_CARGO; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'h-16 border-2 border-dashed border-yellow-400/50 bg-[#0d0221] flex items-center justify-center p-1';
+                if (i < state.cargo.length) {
+                    const item = state.cargo[i];
+                    slot.className = 'h-16 border-2 border-yellow-400 bg-[#1d0a3d] flex items-center justify-between p-2 cursor-pointer hover:border-pink-500';
+                    slot.onclick = () => removeFromCargo(i);
+                    slot.innerHTML = `
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <span class="text-lg shrink-0">${item.icon}</span>
+                            <div class="overflow-hidden text-left">
+                                <div class="text-[8px] text-white font-bold truncate">${item.name}</div>
+                                <div class="text-[8px] text-cyan-300 font-bold mt-0.5">${item.weight} KG</div>
+                            </div>
+                        </div>
+                        <span class="text-[9px] text-pink-400 font-bold shrink-0 ml-1">X</span>
+                    `;
+                } else {
+                    slot.innerHTML = `<span class="text-[8px] text-yellow-400/30">SLOT ${i+1}</span>`;
+                }
+                cargoGrid.appendChild(slot);
+            }
+
+            // Aggiorna Telemetria Peso & Consumo Carburante
+            const totalWeight = getCurrentCargoWeight();
+            const estimatedBurn = calcFuelBurnPerStep(totalWeight);
+            const styleInfo = getWeightStyleClasses(totalWeight);
+            const maxPossibleWeight = 165; // Riferimento visivo per la barra
+            const barPct = Math.min(100, Math.round((totalWeight / maxPossibleWeight) * 100));
+
+            const telemetryBox = document.getElementById('weight-telemetry-box');
+            telemetryBox.className = `mb-3 p-3 bg-[#120826] border-2 ${styleInfo.border} space-y-2 transition-colors`;
+
+            const weightEl = document.getElementById('stage1-total-weight');
+            weightEl.textContent = `${totalWeight} KG (${styleInfo.label})`;
+            weightEl.className = styleInfo.text;
+
+            const burnEl = document.getElementById('stage1-fuel-burn');
+            burnEl.textContent = `-${estimatedBurn}% FUEL`;
+            burnEl.className = styleInfo.text;
+
+            const barEl = document.getElementById('stage1-weight-bar');
+            barEl.className = `h-full ${styleInfo.bar} transition-all duration-200`;
+            barEl.style.width = `${barPct}%`;
+
+            document.getElementById('cargo-count').textContent = `${state.cargo.length} / ${MAX_CARGO}`;
+            document.getElementById('btn-launch').disabled = state.cargo.length === 0;
+            document.getElementById('cargo-feedback').textContent = state.cargo.length === 0 
+                ? 'Seleziona almeno un oggetto per procedere.' 
+                : `Carico: ${totalWeight} kg. Consumo stimato: -${estimatedBurn}% carburante a tappa (8 tappe).`;
+        }
+
+        // TRANSIZIONE WARP A SCHERMO INTERO
+        function triggerWarpTransition(callback, message = 'ACCENSIONE MOTORI WARP...') {
+            sfxWarpTransition();
+            const overlay = document.getElementById('warp-overlay');
+            const textEl = document.getElementById('warp-text');
+            textEl.textContent = message;
+            overlay.classList.remove('hidden');
+
+            setTimeout(() => {
+                callback();
+                overlay.classList.add('hidden');
+            }, 2000);
+        }
+
+        function launchRocket() {
+            if (state.cargo.length === 0) return;
+            state.initialCargoSnapshot = [...state.cargo];
+            state.initialWeight = getCurrentCargoWeight();
+            state.triggeredEventIds = [];
+            state.step = 1;
+            state.fuel = 100;
+            state.oxygen = 90;
+            state.hull = 90;
+            state.failuresCount = 0;
+            state.instantDeathReason = '';
+
+            triggerWarpTransition(() => {
+                document.getElementById('stage-1-view').classList.add('hidden');
+                document.getElementById('stage-2-view').classList.remove('hidden');
+                document.getElementById('stage-subtitle').textContent = 'STAGE 2: VOLO INTERPLANETARIO (8 TAPPE)';
+                initFlightStage();
+            }, `ACCENSIONE MOTORI (MASSA CARICO: ${state.initialWeight} KG)...`);
+        }
+
+        // =========================================================
+        // STAGE 2: EVENTI DINAMICI LEGATI AGLI OGGETTI IN STIVA
+        // =========================================================
+
+        // Pool di eventi specializzati mappati sugli specifici oggetti imbarcati (utili e inutili)
+        const ITEM_SPECIFIC_EVENTS = {
+            heat_shield: [
+                {
+                    id: 'ev_heat_shield_1',
+                    tag: 'IMPREVISTO ORBITALE',
+                    emoji: '☄️',
+                    title: 'SCIAME DI MICROMETEORITI AD ALTA VELOCITÀ',
+                    desc: 'Detriti rocciosi puntano dritti verso la prua della navicella: per fortuna hai caricato lo Scudo Deflettore nella stiva!',
+                    options: [
+                        {
+                            text: 'Dispiega lo Scudo Deflettore dalla stiva',
+                            reqItem: 'heat_shield',
+                            outcome: 'success',
+                            desc: 'Lo Scudo Deflettore assorbe e vaporizza l’intero sciame senza un graffio sullo scafo!'
+                        },
+                        {
+                            text: 'Tenta una virata brusca con i propulsori laterali',
+                            reqItem: null,
+                            outcome: 'random',
+                            successChance: 0.18,
+                            successDesc: 'Manovra da manuale! Schivi all’ultimo secondo il grosso dei detriti.',
+                            failDesc: 'Troppo lento: i micrometeoriti crivellano il rivestimento esterno!'
+                        }
+                    ]
+                },
+                {
+                    id: 'ev_heat_shield_2',
+                    tag: 'ALLERTA TERMICA',
+                    emoji: '☀️',
+                    title: 'TEMPESTA DI PLASMA SOLARE',
+                    desc: 'Un’ondata di radiazione termica sta surriscaldando lo scafo oltre la soglia di fusione.',
+                    options: [
+                        {
+                            text: 'Orienta lo Scudo Deflettore verso il Sole',
+                            reqItem: 'heat_shield',
+                            outcome: 'success',
+                            desc: 'Lo Scudo Deflettore riflette il plasma incandescente mantenendo la cabina fresca.'
+                        },
+                        {
+                            text: 'Spegni i sistemi di raffreddamento per risparmiare energia',
+                            reqItem: null,
+                            outcome: 'random',
+                            successChance: 0.15,
+                            successDesc: 'La temperatura regge per un soffio finché l’onda solare non passa.',
+                            failDesc: 'Surriscaldamento critico: guarnizioni fuse e perdita di ossigeno!'
+                        }
+                    ]
+                }
+            ],
+            fuel_cell: [
+                {
+                    id: 'ev_fuel_cell_1',
+                    tag: 'EMERGENZA ENERGETICA',
+                    emoji: '⚡',
+                    title: 'COLLASSO DEI BANCHI BATTERIA',
+                    desc: 'Un picco di tensione ha scaricato i condensatori principali: serve subito una fonte energetica dedicata.',
+                    options: [
+                        {
+                            text: 'Collega la Cella a Combustibile dalla stiva',
+                            reqItem: 'fuel_cell',
+                            outcome: 'success',
+                            desc: 'La Cella a Combustibile eroga energia pulita e riattiva immediatamente tutti i sistemi!'
+                        },
+                        {
+                            text: 'Forza il riavvio manuale dei circuiti ausiliari',
+                            reqItem: null,
+                            outcome: 'random',
+                            successChance: 0.18,
+                            successDesc: 'Scintille sui relè, ma il sistema ausiliario riparte contro ogni previsione.',
+                            failDesc: 'I relè fondono completamente: blackout parziale e perdita di ossigeno!'
+                        }
+                    ]
+                }
+            ],
+            o2_tank: [
+                {
+                    id: 'ev_o2_tank_1',
+                    tag: 'ANOMALIA ATMOSFERICA',
+                    emoji: '🫧',
+                    title: 'DEPRESSURIZZAZIONE DEL MODULO ABITATIVO',
+                    desc: 'La valvola del ricircolo d’aria si è bloccata aperta e la pressione interna scende a vista d’occhio!',
+                    options: [
+                        {
+                            text: 'Innestala Bombola di Ossigeno nel collettore',
+                            reqItem: 'o2_tank',
+                            outcome: 'success',
+                            desc: 'La Bombola di Ossigeno ripressurizza istantaneamente l’intera cabina al 100%!'
+                        },
+                        {
+                            text: 'Riduci al minimo il respiratore e chiudi le paratie stagne',
+                            reqItem: null,
+                            outcome: 'random',
+                            successChance: 0.18,
+                            successDesc: 'Riesci a isolare il compartimento stagno prima di perdere troppa aria.',
+                            failDesc: 'Ipossia imminente: l’equipaggio perde lucidità e le riserve d’aria crollano.'
+                        }
+                    ]
+                }
+            ],
+            repair_kit: [
+                {
+                    id: 'ev_repair_kit_1',
+                    tag: 'AVARIA STRUTTURALE',
+                    emoji: '🛠️',
+                    title: 'CREPA NELLA PARATIA PRESSURIZZATA',
+                    desc: 'Una saldatura dello scafo ha ceduto sotto lo stress gravitazionale: si sente un sibilo inquietante.',
+                    options: [
+                        {
+                            text: 'Sigilla e salda con il Kit Riparazione',
+                            reqItem: 'repair_kit',
+                            outcome: 'success',
+                            desc: 'Con la resina epossidica e la saldatrice del Kit Riparazione la paratia torna più solida di prima!'
+                        },
+                        {
+                            text: 'Tampona la falla con nastro isolante e pannelli di fortuna',
+                            reqItem: null,
+                            outcome: 'random',
+                            successChance: 0.15,
+                            successDesc: 'Incredibilmente il tampone regge alla pressione differenziale dello spazio.',
+                            failDesc: 'Il tampone salta via nel vuoto! Danni strutturali e perdita d’aria.'
+                        }
+                    ]
+                }
+            ],
+            sensor_dish: [
+                {
+                    id: 'ev_sensor_dish_1',
+                    tag: 'NAVIGAZIONE CIECA',
+                    emoji: '📡',
+                    title: 'NEBULOSA ELETTROMAGNETICA SULLA ROTTA',
+                    desc: 'Una nube densa di particelle ionizzate acceca i radar standard della navicella tra i detriti orbitali.',
+                    options: [
+                        {
+                            text: 'Scansiona un varco sicuro con lo Scanner Spaziale',
+                            reqItem: 'sensor_dish',
+                            outcome: 'success',
+                            desc: 'Lo Scanner Spaziale penetra l’interferenza e traccia una rotta sicura al millimetro!'
+                        },
+                        {
+                            text: 'Procedi alla cieca a velocità ridotta',
+                            reqItem: null,
+                            outcome: 'neutral',
+                            desc: 'Attraversi la nebulosa senza schiantarti, ma consumi propellente extra per correggere la deriva.'
+                        }
+                    ]
+                }
+            ],
+            med_pack: [
+                {
+                    id: 'ev_med_pack_1',
+                    tag: 'ALLERTA BIOLOGICA',
+                    emoji: '🍱',
+                    title: 'INTOSSICAZIONE DA RADIAZIONI COSMICHE',
+                    desc: 'Un brillamento solare ha colpito l’equipaggio provocando vertigini, nausea e calo dei riflessi ai comandi.',
+                    options: [
+                        {
+                            text: 'Somministra i farmaci anti-radiazioni del Kit Medico',
+                            reqItem: 'med_pack',
+                            outcome: 'success',
+                            desc: 'Il Kit Medico neutralizza gli effetti delle radiazioni: equipaggio subito al top!'
+                        },
+                        {
+                            text: 'Imponi riposo forzato e idratazione con le scorte di bordo',
+                            reqItem: null,
+                            outcome: 'random',
+                            successChance: 0.20,
+                            successDesc: 'L’equipaggio stringe i denti e supera la fase acuta senza errori di pilotaggio.',
+                            failDesc: 'Malore ai comandi: la nave sbanda subendo danni allo scafo e spreco d’ossigeno.'
+                        }
+                    ]
+                }
+            ],
+            toaster: [
+                {
+                    id: 'ev_toaster_1',
+                    tag: 'ALLERTA CARICO ASSURDO',
+                    emoji: '🍞',
+                    title: 'CORTOCIRCUITO DAL TOSTAPANE VINTAGE',
+                    desc: 'Il Tostapane Vintage che hai imbarcato si è acceso da solo in assenza di gravità, sputando scintille e fumo sul quadro elettrico!',
+                    options: [
+                        {
+                            text: 'Collega il Tostapane Vintage al quadro per scaricare la sovratensione',
+                            reqItem: 'toaster',
+                            outcome: 'useless_risk',
+                            successDesc: 'Incredibile (10%): la resistenza del Tostapane Vintage fa da ponte stabilizzatore perfetto!',
+                            failDesc: 'Cortocircuito grave! Il tostapane fonde i circuiti principali e danneggia i sistemi.',
+                            instantDeathDesc: 'CATASTROFE ISTANTANEA! Il Tostapane Vintage innesca un arco elettrico nel reattore disintegrando la navicella!'
+                        },
+                        {
+                            text: 'Stacca l’alimentazione generale e isola il vano stiva',
+                            reqItem: null,
+                            outcome: 'neutral',
+                            desc: 'Spegni l’incendio elettrico sul nascere, ma perdi tempo e propellente per riallineare la rotta.'
+                        }
+                    ]
+                }
+            ],
+            cactus: [
+                {
+                    id: 'ev_cactus_1',
+                    tag: 'ALLERTA CARICO ASSURDO',
+                    emoji: '🌵',
+                    title: 'EMERGENZA SPINE IN ASSENZA DI GRAVITÀ',
+                    desc: 'Il vaso della Pianta Grassa si è sganciato nella cabina pressurizzata: spine acuminate fluttuano pericolosamente vicino ai condotti dell’ossigeno!',
+                    options: [
+                        {
+                            text: 'Usa la Pianta Grassa per rigenerare ossigeno d’emergenza',
+                            reqItem: 'cactus',
+                            outcome: 'useless_risk',
+                            successDesc: 'Mutazione spaziale miracolosa (10%): la Pianta Grassa rilascia ossigeno puro all’improvviso!',
+                            failDesc: 'La pianta va in ipossia spaziale e alcune spine perforano i tubi secondari dell’aria.',
+                            instantDeathDesc: 'CATASTROFE ISTANTANEA! Le spine della Pianta Grassa perforano la membrana principale dell’ossigeno svuotando la cabina!'
+                        },
+                        {
+                            text: 'Attiva i ventilatori di aspirazione per catturare i detriti vegetali',
+                            reqItem: null,
+                            outcome: 'random',
+                            successChance: 0.22,
+                            successDesc: 'I filtri aspirano il terriccio e le spine prima che causino danni.',
+                            failDesc: 'I filtri dell’aria si intasano di terriccio facendo calare l’ossigeno in cabina!'
+                        }
+                    ]
+                }
+            ],
+            rubber_duck: [
+                {
+                    id: 'ev_rubber_duck_1',
+                    tag: 'ALLERTA CARICO ASSURDO',
+                    emoji: '🦆',
+                    title: 'INTERFERENZA ACUSTICA DELLA PAPERA XL',
+                    desc: 'La pressione della cabina comprime la Papera di Gomma XL nella stiva, emettendo un fischio ultrasonico che manda in tilt i sensori radar!',
+                    options: [
+                        {
+                            text: 'Trasmetti il fischio della Papera di Gomma XL sul canale alieno',
+                            reqItem: 'rubber_duck',
+                            outcome: 'useless_risk',
+                            successDesc: 'Incredibile (10%)! Una sonda aliena interpreta il suono della papera come un saluto di pace e ricarica i sistemi!',
+                            failDesc: 'Il fischio assordante stordisce l’equipaggio e manda in blocco il computer di bordo.',
+                            instantDeathDesc: 'CATASTROFE ISTANTANEA! Il fischio della Papera di Gomma XL attira un raggio disintegratore alieno sulla navicella!'
+                        },
+                        {
+                            text: 'Ricalibra manualmente le frequenze radio ignorando il rumore',
+                            reqItem: null,
+                            outcome: 'neutral',
+                            desc: 'Riesci a filtrare il fischio, ma la manovra consuma carburante extra.'
+                        }
+                    ]
+                }
+            ],
+            office_chair: [
+                {
+                    id: 'ev_office_chair_1',
+                    tag: 'ALLERTA CARICO ASSURDO',
+                    emoji: '🪑',
+                    title: 'PROIETTILE ROTANTE IN CABINA',
+                    desc: 'Durante una correzione d’assetto, la Sedia Girevole imbarcata si è sganciata e rimbalza come una trottola impazzita contro la plancia comandi!',
+                    options: [
+                        {
+                            text: 'Usa la Sedia Girevole come contrappeso esterno contro i detriti',
+                            reqItem: 'office_chair',
+                            outcome: 'useless_risk',
+                            successDesc: 'Colpo di scena assurdo (10%): la Sedia Girevole devia miracolosamente un masso vagante!',
+                            failDesc: 'La sedia sfonda un pannello interno danneggiando lo scafo e i cavi dell’ossigeno!',
+                            instantDeathDesc: 'CATASTROFE ISTANTANEA! La Sedia Girevole sfonda il portellone d’aria provocando una depressurizzazione esplosiva!'
+                        },
+                        {
+                            text: 'Esegui una frenata d’emergenza per fermare la corsa della sedia',
+                            reqItem: null,
+                            outcome: 'neutral',
+                            desc: 'Fermi la sedia prima che distrugga il timone, bruciando però propellente extra.'
+                        }
+                    ]
+                }
+            ],
+            golf_set: [
+                {
+                    id: 'ev_golf_set_1',
+                    tag: 'ALLERTA CARICO ASSURDO',
+                    emoji: '🏌️',
+                    title: 'FLAP DIREZIONALE BLOCCATO',
+                    desc: 'Un attuatore esterno si è incastrato e hai la Mazza da Golf proprio lì accanto nella stiva: la tentazione di usarla come leva è fortissima!',
+                    options: [
+                        {
+                            text: 'Usa la Mazza da Golf per sbloccare manualmente i flaps',
+                            reqItem: 'golf_set',
+                            outcome: 'useless_risk',
+                            successDesc: 'Colpo di genio folle (10%): la Mazza da Golf incastra perfettamente il deflettore guasto!',
+                            failDesc: 'Colpo maldestro sui comandi di volo: la nave sbanda subendo danni allo scafo!',
+                            instantDeathDesc: 'CATASTROFE ISTANTANEA! La Mazza da Golf blocca i retrorazzi facendo precipitare il razzo fuori orbita!'
+                        },
+                        {
+                            text: 'Compensa la deriva usando solo i propulsori principali',
+                            reqItem: null,
+                            outcome: 'neutral',
+                            desc: 'Mantieni la rotta senza toccare la mazza, consumando però carburante aggiuntivo.'
+                        }
+                    ]
+                }
+            ],
+            lava_lamp: [
+                {
+                    id: 'ev_lava_lamp_1',
+                    tag: 'ALLERTA CARICO ASSURDO',
+                    emoji: '🛋️',
+                    title: 'SURRISCALDAMENTO DELLA LAMPADA LAVA',
+                    desc: 'L’esposizione solare ha portato a ebollizione la cera della Lampada Lava imbarcata: il vetro vibra sotto una pressione interna pericolosa!',
+                    options: [
+                        {
+                            text: 'Usa la Lampada Lava come bussola termica e luce ipnotica',
+                            reqItem: 'lava_lamp',
+                            outcome: 'useless_risk',
+                            successDesc: 'Assurdo ma vero (10%): le bolle di cera seguono il campo magnetico guidandoti fuori dalla tempesta!',
+                            failDesc: 'La lampada si crepa rilasciando cera bollente sui fusibili della cabina!',
+                            instantDeathDesc: 'CATASTROFE ISTANTANEA! Il vetro della Lampada Lava esplode mandando in fiamme l’ossigeno puro in cabina!'
+                        },
+                        {
+                            text: 'Spegni subito il riscaldamento di settore per raffreddare il vetro',
+                            reqItem: null,
+                            outcome: 'neutral',
+                            desc: 'Eviti l’esplosione termica, ma il calo di potenza rallenta i motori consumando più fuel.'
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // Eventi di riserva generali (usati quando tutti gli oggetti in stiva hanno già avuto il proprio evento o sono stati consumati)
+        const GENERAL_FALLBACK_EVENTS = [
+            {
+                id: 'gen_meteor_belt',
+                tag: 'IMPREVISTO ORBITALE',
+                emoji: '☄️',
+                title: 'CINTURA DI DETRITI SPAZIALI',
+                desc: 'Una nube di frammenti metallici incrocia la traiettoria della navicella nello spazio profondo.',
+                options: [
+                    {
+                        text: 'Deviazione manuale con i propulsori di assetto',
+                        reqItem: null,
+                        outcome: 'random',
+                        successChance: 0.22,
+                        successDesc: 'Riflessi prontissimi: attraversi la cintura senza subire impatti.',
+                        failDesc: 'Un frammento colpisce la fiancata provocando danni allo scafo!'
+                    },
+                    {
+                        text: 'Rallenta i motori e lasciati trasportare dall’inerzia',
+                        reqItem: null,
+                        outcome: 'neutral',
+                        desc: 'Superi la zona pericolosa indenne, ma perdi tempo e propellente extra.'
+                    }
+                ]
+            },
+            {
+                id: 'gen_solar_flare',
+                tag: 'ALLERTA COSMICA',
+                emoji: '🌞',
+                title: 'ONDA D’URTO DEL VENTO SOLARE',
+                desc: 'Una raffica magnetica spinge la navicella fuori dal corridoio orbitale calcolato.',
+                options: [
+                    {
+                        text: 'Correggi la rotta con una spinta controllata',
+                        reqItem: null,
+                        outcome: 'neutral',
+                        desc: 'Rientri nel corridoio marziano bruciando carburante extra per la correzione.'
+                    },
+                    {
+                        text: 'Sfrutta la spinta solare spegnendo gli stabilizzatori',
+                        reqItem: null,
+                        outcome: 'random',
+                        successChance: 0.20,
+                        successDesc: 'Cavalchi l’onda magnetica con precisione chirurgica!',
+                        failDesc: 'Turbolenza violenta: l’equipaggio consuma ossigeno extra e lo scafo scricchiola.'
+                    }
+                ]
+            },
+            {
+                id: 'gen_gravity_well',
+                tag: 'ANOMALIA GRAVITAZIONALE',
+                emoji: '🪐',
+                title: 'FIONDA GRAVITAZIONALE DI UN PLANETOIDE',
+                desc: 'L’attrazione di un asteroide massiccio altera improvvisamente la velocità di crociera.',
+                options: [
+                    {
+                        text: 'Esegui una manovra di fionda gravitazionale',
+                        reqItem: null,
+                        outcome: 'random',
+                        successChance: 0.25,
+                        successDesc: 'Calcolo orbitale perfetto: guadagni slancio verso Marte!',
+                        failDesc: 'Angolo d’ingresso errato: micro-fratture sullo scafo e calo di pressione.'
+                    },
+                    {
+                        text: 'Accendi i retrorazzi per mantenere la velocità costante',
+                        reqItem: null,
+                        outcome: 'neutral',
+                        desc: 'Traiettoria stabilizzata in sicurezza con un consumo extra di propellente.'
+                    }
+                ]
+            },
+            {
+                id: 'gen_mars_approach',
+                tag: 'AVVICINAMENTO FINALE',
+                emoji: '🔴',
+                title: 'INGRESSO NELL’ATMOSFERA MARZIANA',
+                desc: 'L’attrito con l’atmosfera sottile di Marte fa vibrare l’intera struttura durante la discesa finale.',
+                options: [
+                    {
+                        text: 'Esegui la sequenza di frenata atmosferica standard',
+                        reqItem: null,
+                        outcome: 'random',
+                        successChance: 0.30,
+                        successDesc: 'Angolo di rientro impeccabile: i paracadute si aprono al momento giusto!',
+                        failDesc: 'Frenata brusca tra le raffiche marziane: lo scafo subisce un forte stress!'
+                    },
+                    {
+                        text: 'Usa i propulsori principali per stabilizzare la discesa',
+                        reqItem: null,
+                        outcome: 'neutral',
+                        desc: 'Discesa stabilizzata con successo consumando le riserve di carburante.'
+                    }
+                ]
+            }
+        ];
+
+        // Seleziona dinamicamente l'evento per la tappa corrente in base agli oggetti ancora in stiva
+        function selectDynamicEventForCargo() {
+            // 1. Cerca eventi dedicati agli oggetti attualmente presenti in stiva e non ancora attivati
+            const cargoEventCandidates = [];
+            state.cargo.forEach(item => {
+                const itemEvents = ITEM_SPECIFIC_EVENTS[item.id] || [];
+                itemEvents.forEach(ev => {
+                    if (!state.triggeredEventIds.includes(ev.id)) {
+                        cargoEventCandidates.push(ev);
+                    }
+                });
+            });
+
+            let chosenTemplate = null;
+            if (cargoEventCandidates.length > 0) {
+                chosenTemplate = cargoEventCandidates[Math.floor(Math.random() * cargoEventCandidates.length)];
+            } else {
+                // 2. Fallback sugli eventi generali non ancora usati (o qualsiasi generale se esauriti)
+                const unusedGeneral = GENERAL_FALLBACK_EVENTS.filter(ev => !state.triggeredEventIds.includes(ev.id));
+                const pool = unusedGeneral.length > 0 ? unusedGeneral : GENERAL_FALLBACK_EVENTS;
+                chosenTemplate = pool[Math.floor(Math.random() * pool.length)];
+            }
+
+            state.triggeredEventIds.push(chosenTemplate.id);
+
+            // Clona profondamente l'evento e costruisci opzioni reattive agli oggetti in stiva
+            const eventInstance = {
+                ...chosenTemplate,
+                options: chosenTemplate.options.map(o => ({ ...o }))
+            };
+
+            // Inietta opzioni contestuali extra se il giocatore possiede altri oggetti utili/inutili rilevanti in stiva
+            const hasItemInCargo = (id) => state.cargo.some(c => c.id === id);
+            const alreadyHasOptionForItem = (id) => eventInstance.options.some(o => o.reqItem === id);
+
+            // Se l'evento riguarda danni/scafo/detriti e in stiva c'è il Kit Riparazione o lo Scudo Deflettore
+            if ((eventInstance.tag.includes('ORBITALE') || eventInstance.tag.includes('STRUTTURALE')) && hasItemInCargo('repair_kit') && !alreadyHasOptionForItem('repair_kit')) {
+                eventInstance.options.unshift({
+                    text: 'Rinforza e ripara subito le paratie con il Kit Riparazione',
+                    reqItem: 'repair_kit',
+                    outcome: 'success',
+                    desc: 'Il Kit Riparazione mette in sicurezza la struttura della navicella!'
+                });
+            }
+
+            // Se l'evento riguarda pressione/aria e in stiva c'è la Bombola Ossigeno
+            if ((eventInstance.tag.includes('ATMOSFERICA') || eventInstance.desc.toLowerCase().includes('ossigeno')) && hasItemInCargo('o2_tank') && !alreadyHasOptionForItem('o2_tank')) {
+                eventInstance.options.unshift({
+                    text: 'Compensa il calo d’aria con la Bombola di Ossigeno',
+                    reqItem: 'o2_tank',
+                    outcome: 'success',
+                    desc: 'La Bombola di Ossigeno mantiene la pressione perfetta in cabina!'
+                });
+            }
+
+            // Se il giocatore ha un oggetto inutile in stiva non ancora usato in questa opzione, offri l'opzione folle dedicata
+            const junkInteractions = [
+                {
+                    id: 'toaster',
+                    text: 'Collega il Tostapane Vintage al pannello per stabilizzare il sistema',
+                    successDesc: 'Incredibile (10%): il Tostapane Vintage fa miracoli contro ogni legge della fisica!',
+                    failDesc: 'Il Tostapane Vintage fa scintille e manda in tilt i sensori!',
+                    instantDeathDesc: 'CATASTROFE ISTANTANEA! Il Tostapane Vintage provoca un’esplosione elettrica fatale!'
+                },
+                {
+                    id: 'rubber_duck',
+                    text: 'Spremi la Papera di Gomma XL per testare la pressione e le frequenze',
+                    successDesc: 'Assurdo (10%): il fischio della Papera di Gomma XL sblocca la valvola inceppata!',
+                    failDesc: 'Il suono rimbalza nella cabina deconcentrando il pilota durante la manovra!',
+                    instantDeathDesc: 'CATASTROFE ISTANTANEA! La Papera di Gomma XL attira un raggio ostile che distrugge la nave!'
+                },
+                {
+                    id: 'golf_set',
+                    text: 'Colpisci il pannello bloccato con la Mazza da Golf',
+                    successDesc: 'Colpo da maestro (10%): la Mazza da Golf sblocca il meccanismo al primo tentativo!',
+                    failDesc: 'Colpo sbilenco: ammacchi la console di controllo e danneggi i sistemi!',
+                    instantDeathDesc: 'CATASTROFE ISTANTANEA! La Mazza da Golf sfonda un condotto ad alta pressione facendo esplodere il modulo!'
+                },
+                {
+                    id: 'office_chair',
+                    text: 'Usa la Sedia Girevole come ariete per riallineare il portello',
+                    successDesc: 'Incredibile (10%): la Sedia Girevole incastra perfettamente il portello!',
+                    failDesc: 'Perdi il controllo in assenza di gravità e la sedia colpisce la plancia!',
+                    instantDeathDesc: 'CATASTROFE ISTANTANEA! La Sedia Girevole frantuma l’oblò principale risucchiando l’aria nel vuoto!'
+                },
+                {
+                    id: 'cactus',
+                    text: 'Avvicina la Pianta Grassa al sensore per ossigenare l’ambiente',
+                    successDesc: 'Miracolo botanico (10%): la Pianta Grassa purifica l’aria all’istante!',
+                    failDesc: 'Le spine della Pianta Grassa graffiano le guarnizioni facendo calare l’ossigeno!',
+                    instantDeathDesc: 'CATASTROFE ISTANTANEA! Le spine della Pianta Grassa forano la riserva principale di ossigeno!'
+                },
+                {
+                    id: 'lava_lamp',
+                    text: 'Usa la Lampada Lava come fonte di calore e luce d’emergenza',
+                    successDesc: 'Incredibile (10%): la Lampada Lava stabilizza la temperatura del sensore!',
+                    failDesc: 'La Lampada Lava si surriscalda rilasciando fumi tossici in cabina!',
+                    instantDeathDesc: 'CATASTROFE ISTANTANEA! La Lampada Lava esplode innescando un incendio incontrollabile!'
+                }
+            ];
+
+            if (eventInstance.options.length < 3) {
+                const availableJunk = junkInteractions.filter(j => hasItemInCargo(j.id) && !alreadyHasOptionForItem(j.id));
+                if (availableJunk.length > 0) {
+                    const pickedJunk = availableJunk[Math.floor(Math.random() * availableJunk.length)];
+                    eventInstance.options.push({
+                        text: pickedJunk.text,
+                        reqItem: pickedJunk.id,
+                        outcome: 'useless_risk',
+                        successDesc: pickedJunk.successDesc,
+                        failDesc: pickedJunk.failDesc,
+                        instantDeathDesc: pickedJunk.instantDeathDesc
+                    });
+                }
+            }
+
+            return eventInstance;
+        }
+
+        function initFlightStage() {
+            state.stepResolved = false;
+            document.getElementById('action-result-banner').classList.add('hidden');
+            loadCurrentEvent();
+            updateFlightHUD();
+        }
+
+        function loadCurrentEvent() {
+            const event = selectDynamicEventForCargo();
+            state.currentEvent = event;
+
+            document.getElementById('step-indicator').textContent = `TAPPA ${state.step}/${TOTAL_STEPS}`;
+            document.getElementById('event-emoji').textContent = event.emoji;
+            document.getElementById('event-tag').textContent = event.tag;
+            document.getElementById('event-title').textContent = event.title;
+            document.getElementById('event-desc').textContent = event.desc;
+
+            const progressPercent = (state.step / TOTAL_STEPS) * 100;
+            document.getElementById('flight-progress-fill').style.width = `${progressPercent}%`;
+            document.getElementById('rocket-marker').style.left = `${Math.max(5, progressPercent - 5)}%`;
+
+            renderEventOptions();
+            renderFlightCargo();
+        }
+
+        function renderEventOptions() {
+            const optionsEl = document.getElementById('event-options');
+            optionsEl.innerHTML = '';
+
+            state.currentEvent.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'pixel-btn w-full p-3 bg-[#0d0221] hover:bg-[#201045] text-left text-[10px] text-cyan-200 flex items-center justify-between transition-all';
+                btn.disabled = state.stepResolved;
+                btn.onclick = () => resolveEventOption(opt);
+                btn.innerHTML = `
+                    <span class="font-bold">>[OPZIONE ${idx+1}] ${opt.text}</span>
+                    <span class="text-xs">▶</span>
+                `;
+                optionsEl.appendChild(btn);
+            });
+        }
+
+        function resolveEventOption(opt) {
+            if (state.stepResolved) return;
+            state.stepResolved = true;
+
+            let outcomeType = opt.outcome;
+            let usedItemObj = null;
+            let missingRequiredItem = false;
+
+            if (opt.reqItem) {
+                const itemIdx = state.cargo.findIndex(i => i.id === opt.reqItem);
+                if (itemIdx !== -1) {
+                    usedItemObj = state.cargo[itemIdx];
+                    state.cargo.splice(itemIdx, 1);
+                    state.usedItemsLog.push(usedItemObj);
+                    if (outcomeType === 'success') {
+                        outcomeType = 'success';
+                    }
+                } else {
+                    // L'oggetto richiesto non è presente nella stiva
+                    missingRequiredItem = true;
+                    outcomeType = 'fail';
+                }
+            }
+
+            // Valutazione probabilistica dedicata agli oggetti inutili (10% successo, 35% Game Over istantaneo, 55% fallimento grave)
+            if (outcomeType === 'useless_risk' && !missingRequiredItem) {
+                const roll = Math.random();
+                if (roll < 0.10) {
+                    outcomeType = 'success';
+                } else if (roll < 0.45) {
+                    outcomeType = 'instant_gameover';
+                } else {
+                    outcomeType = 'fail';
+                }
+            } else if (outcomeType === 'random') {
+                const roll = Math.random();
+                outcomeType = roll <= opt.successChance ? 'success' : 'fail';
+            }
+
+            // Calcola peso attuale DOPO l'eventuale consumo dell'oggetto e consumo carburante per la tappa
+            const currentWeight = getCurrentCargoWeight();
+            const fuelBurned = calcFuelBurnPerStep(currentWeight);
+
+            const banner = document.getElementById('action-result-banner');
+            banner.classList.remove('hidden');
+
+            let outcomeHtml = '';
+
+            if (outcomeType === 'success') {
+                sfxSuccess();
+                banner.className = 'mb-3 p-3 border-2 border-emerald-400 bg-emerald-950/80 text-[10px] text-emerald-200 space-y-1.5 leading-relaxed';
+                outcomeHtml = `<div><strong class="text-emerald-300">✓ SUCCESSO:</strong> ${opt.desc || opt.successDesc}</div>`;
+                state.fuel = Math.min(100, state.fuel + 4);
+                state.oxygen = Math.min(100, state.oxygen + 5);
+            } else if (outcomeType === 'neutral') {
+                sfxPickup(false);
+                banner.className = 'mb-3 p-3 border-2 border-yellow-400 bg-yellow-950/80 text-[10px] text-yellow-200 space-y-1.5 leading-relaxed';
+                outcomeHtml = `<div><strong class="text-yellow-300">⚠ NEUTRO:</strong> ${opt.desc}</div>`;
+                state.fuel = Math.max(0, state.fuel - 5);
+            } else if (outcomeType === 'instant_gameover' || outcomeType === 'gameover') {
+                sfxFail();
+                state.hull = 0;
+                state.oxygen = 0;
+                const cataclysmMsg = opt.instantDeathDesc || 'Catastrofe fatale a bordo provocata dall’uso sconsiderato di un oggetto inadatto!';
+                state.instantDeathReason = cataclysmMsg;
+
+                banner.className = 'mb-3 p-3 border-2 border-red-500 bg-red-950 text-[10px] text-red-200 space-y-1.5 leading-relaxed animate-pulse';
+                outcomeHtml = `<div><strong class="text-red-400">💀 GAME OVER ISTANTANEO (35%):</strong> ${cataclysmMsg}</div>`;
+                if (usedItemObj) {
+                    outcomeHtml += `<div class="text-yellow-300 border-t border-white/20 pt-1">💥 OGGETTO FATALE: <strong>${usedItemObj.name}</strong></div>`;
+                }
+                banner.innerHTML = outcomeHtml;
+
+                updateFlightHUD();
+                renderEventOptions();
+                setTimeout(() => finishGame(false), 2000);
+                return;
+            } else {
+                // Fail (esito negativo non letale)
+                sfxFail();
+                state.failuresCount++;
+                state.hull = Math.max(0, state.hull - 18);
+                state.oxygen = Math.max(0, state.oxygen - 14);
+                banner.className = 'mb-3 p-3 border-2 border-red-500 bg-red-950/80 text-[10px] text-red-200 space-y-1.5 leading-relaxed';
+                const failReasonText = missingRequiredItem
+                    ? 'Non avevi l’oggetto richiesto in stiva! Manovra fallita e danni allo scafo.'
+                    : (opt.desc || opt.failDesc);
+                outcomeHtml = `<div><strong class="text-red-400">✗ FALLIMENTO GRAVE (Errori: ${state.failuresCount}/3):</strong> ${failReasonText}</div>`;
+            }
+
+            // Applica il consumo di carburante della spinta motori basato sul peso attuale a bordo
+            state.fuel = Math.max(0, state.fuel - fuelBurned);
+
+            // Aggiungi telemetria dettagliata nel banner di esito
+            if (usedItemObj) {
+                outcomeHtml += `<div class="text-cyan-300 border-t border-white/20 pt-1">📦 OGGETTO CONSUMATO: <strong>${usedItemObj.name} (-${usedItemObj.weight} kg)</strong>. Nave più leggera!</div>`;
+            }
+            outcomeHtml += `<div class="text-yellow-300 border-t border-white/20 pt-1">🔥 SPINTA MOTORI (Carico ${currentWeight} kg): <strong>-${fuelBurned}% FUEL</strong></div>`;
+
+            banner.innerHTML = outcomeHtml;
+
+            updateFlightHUD();
+            renderEventOptions();
+
+            // Controllo game over per risorse a zero o troppi errori (tolleranza 4 errori su 8 tappe)
+            if (state.fuel <= 0 || state.oxygen <= 0 || state.hull <= 0 || state.failuresCount >= 4) {
+                setTimeout(() => finishGame(false), 2400);
+                return;
+            }
+
+            // Passaggio alla tappa successiva dopo 2.6 secondi
+            setTimeout(() => {
+                if (state.step < TOTAL_STEPS) {
+                    state.step++;
+                    triggerWarpTransition(() => initFlightStage(), `AVANZAMENTO TAPPA ${state.step}/${TOTAL_STEPS} (CARICO: ${currentWeight} KG)...`);
+                } else {
+                    triggerWarpTransition(() => finishGame(true), 'ATTERRAGGIO SU MARTE IN CORSO...');
+                }
+            }, 2600);
+        }
+
+        function updateFlightHUD() {
+            const currentWeight = getCurrentCargoWeight();
+            const currentBurnRate = calcFuelBurnPerStep(currentWeight);
+
+            document.getElementById('txt-fuel').textContent = `${state.fuel}%`;
+            document.getElementById('bar-fuel').style.width = `${state.fuel}%`;
+            document.getElementById('hud-cargo-weight').textContent = `CARICO: ${currentWeight} KG`;
+            document.getElementById('hud-fuel-rate').textContent = `-${currentBurnRate}%/TAPPA`;
+
+            document.getElementById('txt-oxygen').textContent = `${state.oxygen}%`;
+            document.getElementById('bar-oxygen').style.width = `${state.oxygen}%`;
+
+            document.getElementById('txt-hull').textContent = `${state.hull}%`;
+            document.getElementById('bar-hull').style.width = `${state.hull}%`;
+
+            renderFlightCargo();
+        }
+
+        function renderFlightCargo() {
+            const listEl = document.getElementById('flight-cargo-list');
+            listEl.innerHTML = '';
+            const currentWeight = getCurrentCargoWeight();
+
+            document.getElementById('flight-cargo-count').textContent = state.cargo.length;
+            document.getElementById('flight-cargo-total-kg').textContent = `${currentWeight} KG`;
+
+            if (state.cargo.length === 0) {
+                listEl.innerHTML = '<div class="text-[9px] text-yellow-400/50 italic p-2">Stiva vuota (0 KG)</div>';
+                return;
+            }
+
+            state.cargo.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'p-2 bg-[#0d0221] border border-cyan-400/50 flex items-center justify-between gap-2';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <span class="text-base shrink-0">${item.icon}</span>
+                        <span class="text-[8px] text-cyan-200 font-bold truncate">${item.name}</span>
+                    </div>
+                    <span class="text-[8px] text-yellow-300 font-bold shrink-0">${item.weight} KG</span>
+                `;
+                listEl.appendChild(div);
+            });
+        }
+
+        // SCENARIO FINALE VITTORIA / FALLIMENTO
+        function finishGame(reachedDestination) {
+            const initialItems = state.initialCargoSnapshot;
+            const usefulItemsCount = initialItems.filter(i => i.useful).length;
+            const totalResources = state.fuel + state.oxygen + state.hull;
+            const endWeight = getCurrentCargoWeight();
+
+            let failureReason = '';
+            if (state.instantDeathReason) {
+                failureReason = state.instantDeathReason;
+            } else if (!reachedDestination || state.fuel <= 0) {
+                failureReason = state.fuel <= 0 
+                    ? `Carburante esaurito nello spazio profondo! Il carico di ${state.initialWeight} kg era troppo pesante per le 8 tappe.`
+                    : 'Il razzo ha esaurito i sistemi vitali nello spazio profondo.';
+            } else if (state.oxygen <= 0 || state.hull <= 0) {
+                failureReason = 'Sistemi vitali compromessi: modulo distrutto prima dell’orbita marziana.';
+            } else if (state.hull < 25 || state.oxygen < 20 || state.fuel < 10) {
+                failureReason = state.fuel < 10
+                    ? `Carburante residuo insufficiente (${state.fuel}%) per completare la frenata atmosferica su Marte!`
+                    : 'Atterraggio fallito: modulo troppo danneggiato all’arrivo su Marte.';
+            } else if (state.failuresCount >= 4) {
+                failureReason = `Troppi errori critici (${state.failuresCount}): strumentazione distrutta.`;
+            } else if (usefulItemsCount < 2 || totalResources < 85) {
+                failureReason = 'Equipaggiamento tecnico insufficiente per avviare la base marziana.';
+            }
+
+            const isVictory = failureReason === '';
+
+            // Attivazione cinematica dedicata (Atterraggio o Schianto)
+            const cinematicOverlay = document.getElementById('cinematic-overlay');
+            const rocketEmoji = document.getElementById('cinematic-rocket-emoji');
+            const rocketWrap = document.getElementById('cinematic-rocket-wrap');
+            const cinematicText = document.getElementById('cinematic-text');
+            const planet = document.getElementById('cinematic-planet');
+
+            cinematicOverlay.classList.remove('hidden');
+
+            if (isVictory) {
+                sfxLandingCinematic();
+                rocketEmoji.textContent = '🚀';
+                rocketWrap.className = 'relative z-10 text-8xl sm:text-9xl mb-8 land-animation';
+                planet.className = 'absolute bottom-0 w-[200vw] h-[120vh] rounded-[100%] bg-gradient-to-t from-red-900 via-orange-700 to-transparent border-t-8 border-emerald-400 opacity-95';
+                cinematicText.className = 'relative z-10 text-xs sm:text-sm font-bold uppercase tracking-widest text-emerald-300 px-4 animate-pulse';
+                cinematicText.textContent = 'ATTERRAGGIO MORBIDO SU MARTE RIUSCITO!';
+            } else {
+                sfxCrashCinematic();
+                rocketEmoji.textContent = '💥';
+                rocketWrap.className = 'relative z-10 text-8xl sm:text-9xl mb-8 crash-animation';
+                planet.className = 'absolute bottom-0 w-[200vw] h-[120vh] rounded-[100%] bg-gradient-to-t from-red-950 via-black to-transparent border-t-8 border-red-600 opacity-95';
+                cinematicText.className = 'relative z-10 text-xs sm:text-sm font-bold uppercase tracking-widest text-red-500 px-4 animate-pulse';
+                cinematicText.textContent = 'IMPATTO CATASTROFICO AL SUOLO MARZIANO!';
+            }
+
+            setTimeout(() => {
+                cinematicOverlay.classList.add('hidden');
+                document.getElementById('stage-2-view').classList.add('hidden');
+                document.getElementById('stage-3-view').classList.remove('hidden');
+                document.getElementById('stage-subtitle').textContent = 'STAGE 3: RAPPORTO FINALE';
+
+                const borderEl = document.getElementById('end-card-border');
+                const emojiEl = document.getElementById('end-emoji');
+                const badgeEl = document.getElementById('end-badge');
+                const titleEl = document.getElementById('end-title');
+                const summaryEl = document.getElementById('end-summary');
+
+                if (isVictory) {
+                    borderEl.style.borderColor = '#00ff88';
+                    emojiEl.textContent = '🏆';
+                    badgeEl.textContent = 'SUCCESSO';
+                    badgeEl.className = 'text-[9px] uppercase px-3 py-1 font-bold bg-emerald-400 text-black';
+                    titleEl.textContent = 'MISSIONE RIUSCITA!';
+                    summaryEl.textContent = 'La base marziana è stata fondata con successo!';
+                } else {
+                    borderEl.style.borderColor = '#ff0055';
+                    emojiEl.textContent = '💥';
+                    badgeEl.textContent = 'FALLIMENTO';
+                    badgeEl.className = 'text-[9px] uppercase px-3 py-1 font-bold bg-red-500 text-white';
+                    titleEl.textContent = 'GAME OVER';
+                    summaryEl.textContent = failureReason;
+                }
+
+                document.getElementById('final-fuel').textContent = `${state.fuel}%`;
+                document.getElementById('final-oxygen').textContent = `${state.oxygen}%`;
+                document.getElementById('final-hull').textContent = `${state.hull}%`;
+                document.getElementById('final-initial-weight').textContent = `${state.initialWeight} KG`;
+                document.getElementById('final-end-weight').textContent = `${endWeight} KG`;
+
+                const itemsList = document.getElementById('final-items-list');
+                itemsList.innerHTML = '';
+                initialItems.forEach(item => {
+                    const used = state.usedItemsLog.some(u => u.id === item.id);
+                    const pill = document.createElement('span');
+                    pill.className = `text-[8px] px-2 py-1 border font-bold ${item.useful ? 'bg-emerald-950 border-emerald-400 text-emerald-200' : 'bg-pink-950 border-pink-400 text-pink-200'}`;
+                    pill.textContent = `${item.icon} ${item.name} (${item.weight}kg)${used ? ' [USATO]' : ''}`;
+                    itemsList.appendChild(pill);
+                });
+
+                const uselessCount = initialItems.filter(i => !i.useful).length;
+                document.getElementById('final-funny-comment').textContent = uselessCount > 2
+                    ? `Hai portato ${uselessCount} oggetti assurdi bruciando carburante extra per trasportarli fino a Marte!`
+                    : `Rapporto massa/propellente ottimale (${state.initialWeight} kg -> ${endWeight} kg): missione condotta con precisione pixel-art!`;
+            }, 3000);
+        }
+
+        function restartGame() {
+            document.getElementById('stage-3-view').classList.add('hidden');
+            document.getElementById('stage-1-view').classList.remove('hidden');
+            document.getElementById('stage-subtitle').textContent = 'STAGE 1: CARICO STIVA';
+            initStage1();
+        }
+
+        // Avvio iniziale al caricamento della pagina
+        window.onload = function() {
+            initStage1();
+        };
+    </script>
+</body>
+</html>
